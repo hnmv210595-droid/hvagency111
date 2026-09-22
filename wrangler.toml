@@ -11,7 +11,7 @@ run_worker_first = ["/api/*"]
 [[d1_databases]]
 binding = "DB"
 database_name = "hv-agency"
-database_id = "00000000-0000-0000-0000-000000000001"
+database_id = "696b58d1-61f6-4eb4-9b93-b33587bef7c9"
 migrations_dir = "migrations"
 
 [vars]
