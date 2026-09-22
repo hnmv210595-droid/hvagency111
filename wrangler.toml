@@ -1,0 +1,26 @@
+name = "hv-agency-internal"
+compatibility_date = "2025-03-01"
+main = "worker/index.ts"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+not_found_handling = "single-page-application"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hv-agency"
+database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "migrations"
+
+[vars]
+COMPANY_IP = "115.76.54.149"
+SESSION_TTL_HOURS = "24"
+LOGIN_RATE_LIMIT = "10"
+LOGIN_RATE_WINDOW_MINUTES = "15"
+TIMEZONE = "Asia/Ho_Chi_Minh"
+CURRENCY = "VNĐ"
+
+# Production secrets (do not commit):
+#   npx wrangler secret put SESSION_SECRET

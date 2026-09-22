@@ -1,0 +1,46 @@
+---
+description: Change scope control — chỉ sửa đúng phạm vi yêu cầu, không refactor/redesign ngoài scope
+alwaysApply: true
+---
+
+# Change Scope Control (bắt buộc)
+
+> DO NOT MODIFY ANYTHING THAT IS NOT REQUIRED TO COMPLETE THE USER'S CURRENT REQUEST.
+> DO NOT REFACTOR, REDESIGN, RENAME, DELETE, UPGRADE, OR "IMPROVE" UNRELATED CODE.
+
+## Trước khi sửa
+
+1. Đọc code hiện tại; xác định nguyên nhân và file thật sự cần đụng.
+2. Xác định **Requested scope** vs **Out of scope**.
+3. Chỉ patch phần thuộc Requested scope.
+4. Ưu tiên: *Smallest safe change that completely satisfies the request.*
+
+## Không được tự ý
+
+- Sửa module / UI / API / schema không liên quan; refactor code đang chạy tốt.
+- Đổi framework, thư viện, kiến trúc, naming, màu/font/spacing/layout ngoài màn hình được yêu cầu.
+- “Tiện thể” clean up, redesign, optimize, normalize DB, upgrade package, rewrite component.
+- Xóa file/function/API/column/migration/dependency nếu không bắt buộc cho yêu cầu.
+- Làm giảm security (auth, RBAC, IP restriction, session cookie, password hashing, secrets).
+
+## Khu vực nhạy cảm (chỉ đổi khi user yêu cầu rõ)
+
+- **Payroll / business rules**: STANDARD_WORK_DAYS=26, PAID_LEAVE=4, paid_days, base_salary_paid, commission, BHXH, net_salary.
+- **Database**: không rename/drop/reset; migration mới riêng; giữ dữ liệu; không sửa migration đã chạy production.
+- **API**: không đổi endpoint/method/body/response/auth nếu không cần; nếu đổi thì cập nhật FE + validation + tests.
+- **Config**: không đụng `.env*`, `wrangler.toml`, Vite/TS/Tailwind/CF config trừ khi yêu cầu liên quan.
+- **Dependency**: không thêm/nâng/đổi package nếu code hiện tại đủ dùng.
+
+## Existing functionality
+
+Existing working functionality MUST remain unchanged unless the user explicitly requests a change.
+
+Nếu phát hiện vấn đề ngoài scope: **không tự sửa** — ghi nhận và báo user sau khi xong yêu cầu hiện tại.
+
+Nếu yêu cầu mơ hồ và có thể ảnh hưởng data/security/API/business logic: chọn thay đổi nhỏ nhất hoặc hỏi lại.
+
+## Báo cáo sau mỗi lần sửa (bắt buộc)
+
+**Changed** — file nào, đổi gì, vì sao  
+**Not changed** — module quan trọng ngoài scope được giữ nguyên  
+**Validation** — test/build/lint đã chạy và kết quả

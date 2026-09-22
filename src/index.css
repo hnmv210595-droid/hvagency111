@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Segoe UI", "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Segoe UI Semibold", "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --color-brand-50: #eef7f4;
+  --color-brand-100: #d5ebe3;
+  --color-brand-200: #aed7c8;
+  --color-brand-300: #7bbba4;
+  --color-brand-400: #4f9b84;
+  --color-brand-500: #357f6b;
+  --color-brand-600: #296656;
+  --color-brand-700: #225246;
+  --color-brand-800: #1d433a;
+  --color-brand-900: #193830;
+  --color-surface: #f3f6f5;
+  --color-ink: #14211d;
+  --color-muted: #5b6b66;
+  --color-line: #d7e2de;
+  --color-danger: #b42318;
+  --color-warning: #b54708;
+  --color-success: #027a48;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(53, 127, 107, 0.12), transparent 60%),
+    radial-gradient(900px 400px at 100% 0%, rgba(41, 102, 86, 0.08), transparent 50%),
+    linear-gradient(180deg, #f7faf9 0%, #eef3f1 100%);
+  color: var(--color-ink);
+}
+
+.dark body,
+html.dark body {
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(79, 155, 132, 0.12), transparent 60%),
+    radial-gradient(900px 400px at 100% 0%, rgba(53, 127, 107, 0.1), transparent 50%),
+    linear-gradient(180deg, #0f1715 0%, #121c19 100%);
+  color: #e8f0ed;
+}
+
+* {
+  box-sizing: border-box;
+}
