@@ -8,6 +8,10 @@ export interface Env {
   LOGIN_RATE_WINDOW_MINUTES?: string;
   TIMEZONE?: string;
   CURRENCY?: string;
+  /** Cloudflare secret — plaintext admin password (hashed into D1 on bootstrap). */
+  ADMIN_PASSWORD?: string;
+  /** Optional; defaults to Admin111 */
+  ADMIN_USERNAME?: string;
 }
 
 export type Variables = {

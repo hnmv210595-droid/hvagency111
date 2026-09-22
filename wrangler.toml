@@ -24,3 +24,5 @@ CURRENCY = "VNĐ"
 
 # Production secrets (do not commit):
 #   npx wrangler secret put SESSION_SECRET
+#   npx wrangler secret put ADMIN_PASSWORD
+# Optional: npx wrangler secret put ADMIN_USERNAME  (default Admin111)
