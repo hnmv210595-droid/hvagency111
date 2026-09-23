@@ -4,16 +4,28 @@ import { nowInTimezone } from './time';
 
 const DEFAULT_ADMIN_USERNAME = 'Admin111';
 
+export type AdminBootstrapResult = {
+  created: boolean;
+  updated: boolean;
+  skipped: boolean;
+  reason?: string;
+};
+
 /**
  * Ensure ADMIN user exists / password matches Cloudflare secret ADMIN_PASSWORD.
  * Username defaults to Admin111 (override with secret/var ADMIN_USERNAME).
- * Never commit plaintext passwords — set via:
- *   wrangler secret put ADMIN_PASSWORD
  */
-export async function ensureAdminFromSecrets(env: Env): Promise<void> {
+export async function ensureAdminFromSecrets(env: Env): Promise<AdminBootstrapResult> {
+  if (!env.DB) {
+    return { created: false, updated: false, skipped: true, reason: 'DB_BINDING_MISSING' };
+  }
+
   const password = env.ADMIN_PASSWORD?.trim();
-  if (!password || password.length < 8) {
-    return;
+  if (!password) {
+    return { created: false, updated: false, skipped: true, reason: 'ADMIN_PASSWORD_MISSING' };
+  }
+  if (password.length < 8) {
+    return { created: false, updated: false, skipped: true, reason: 'ADMIN_PASSWORD_TOO_SHORT' };
   }
 
   const username = (env.ADMIN_USERNAME?.trim() || DEFAULT_ADMIN_USERNAME).slice(0, 100);
@@ -32,7 +44,7 @@ export async function ensureAdminFromSecrets(env: Env): Promise<void> {
     )
       .bind(passwordHash, now, existing.id)
       .run();
-    return;
+    return { created: false, updated: true, skipped: false };
   }
 
   const id = randomId();
@@ -42,4 +54,6 @@ export async function ensureAdminFromSecrets(env: Env): Promise<void> {
   )
     .bind(id, username, passwordHash, now, now)
     .run();
+
+  return { created: true, updated: false, skipped: false };
 }
