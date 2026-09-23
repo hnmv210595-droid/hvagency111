@@ -8,7 +8,6 @@ import {
   FileBarChart2,
   ScrollText,
   Settings,
-  UserRound,
   LogOut,
   Moon,
   Sun,
@@ -32,11 +31,8 @@ const adminNav = [
 ];
 
 const employeeNav = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/attendance', label: 'Điểm danh', icon: CalendarCheck2 },
-  { to: '/revenues', label: 'Doanh thu', icon: Wallet },
-  { to: '/payroll', label: 'Bảng lương', icon: Banknote },
-  { to: '/account', label: 'Tài khoản', icon: UserRound },
+  { to: '/payroll', label: 'Lương của tôi', icon: Banknote },
 ];
 
 export function AppLayout() {
@@ -77,7 +73,7 @@ export function AppLayout() {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
+              end={item.to === '/' || (user?.role === 'EMPLOYEE' && item.to === '/attendance')}
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 cn(

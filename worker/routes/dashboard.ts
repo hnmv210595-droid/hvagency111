@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Env, Variables } from '../env';
 import { jsonError } from '../lib/audit';
 import { getSettings } from '../lib/settings';
-import { monthDateRange, parseYearMonth, todayInTimezone } from '../lib/time';
+import { monthDateRange, parseYearMonth } from '../lib/time';
 import { authMiddleware, requireRole } from '../middleware/auth';
 
 export const dashboardRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -107,84 +107,5 @@ dashboardRoutes.get('/admin', requireRole('ADMIN'), async (c) => {
 });
 
 dashboardRoutes.get('/employee', requireRole('EMPLOYEE'), async (c) => {
-  const user = c.get('user');
-  if (!user.employee_id) return jsonError('No employee profile', 404);
-
-  const yearQ = c.req.query('year');
-  const monthQ = c.req.query('month');
-  let year: number;
-  let month: number;
-  try {
-    ({ year, month } = parseYearMonth(yearQ, monthQ));
-  } catch {
-    return jsonError('Invalid period', 400);
-  }
-
-  const settings = await getSettings(c.env.DB, c.env.COMPANY_IP);
-  const range = monthDateRange(year, month);
-  const today = todayInTimezone(settings.timezone);
-
-  const emp = await c.env.DB.prepare('SELECT * FROM employees WHERE id = ?')
-    .bind(user.employee_id)
-    .first<{
-      base_salary: number;
-      commission_rate: number;
-      name: string;
-    }>();
-
-  const counts = await c.env.DB.prepare(
-    `SELECT
-       SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) AS present_days,
-       SUM(CASE WHEN status = 'PAID_LEAVE' THEN 1 ELSE 0 END) AS paid_leave_days
-     FROM attendance
-     WHERE employee_id = ? AND date >= ? AND date <= ?`,
-  )
-    .bind(user.employee_id, range.start, range.end)
-    .first<{ present_days: number | null; paid_leave_days: number | null }>();
-
-  const revenue = await c.env.DB.prepare(
-    'SELECT amount FROM revenues WHERE employee_id = ? AND year = ? AND month = ?',
-  )
-    .bind(user.employee_id, year, month)
-    .first<{ amount: number }>();
-
-  const payroll = await c.env.DB.prepare(
-    'SELECT * FROM payrolls WHERE employee_id = ? AND year = ? AND month = ?',
-  )
-    .bind(user.employee_id, year, month)
-    .first();
-
-  const todayAttendance = await c.env.DB.prepare(
-    'SELECT * FROM attendance WHERE employee_id = ? AND date = ?',
-  )
-    .bind(user.employee_id, today)
-    .first();
-
-  const presentDays = counts?.present_days ?? 0;
-  const paidLeaveDays = counts?.paid_leave_days ?? 0;
-  const revenueAmount = revenue?.amount ?? 0;
-  const commission =
-    Math.round((revenueAmount * (emp?.commission_rate ?? 0)) / 100);
-
-  return c.json({
-    period: { year, month },
-    settings: {
-      standard_work_days: settings.standard_work_days,
-      paid_leave_days: settings.paid_leave_days,
-      currency: settings.currency,
-    },
-    employee: emp,
-    today_attendance: todayAttendance,
-    stats: {
-      present_days: presentDays,
-      paid_leave_days: paidLeaveDays,
-      paid_days: presentDays + paidLeaveDays,
-      base_salary: emp?.base_salary ?? 0,
-      revenue: revenueAmount,
-      commission_rate: emp?.commission_rate ?? 0,
-      commission,
-      net_salary: (payroll as { net_salary?: number } | null)?.net_salary ?? null,
-      payroll,
-    },
-  });
+  return jsonError('Forbidden', 403);
 });

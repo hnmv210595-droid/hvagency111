@@ -11,15 +11,22 @@ import { PayrollPage } from '@/pages/PayrollPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { AuditLogsPage } from '@/pages/AuditLogsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
-import { AccountPage } from '@/pages/AccountPage';
 import { LoadingState } from '@/components/ui';
 
 function Protected({ roles }: { roles?: Array<'ADMIN' | 'EMPLOYEE'> }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingState />;
   if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
+  if (roles && !roles.includes(user.role)) {
+    return <Navigate to={user.role === 'EMPLOYEE' ? '/attendance' : '/'} replace />;
+  }
   return <Outlet />;
+}
+
+function HomeRedirect() {
+  const { user } = useAuth();
+  if (user?.role === 'EMPLOYEE') return <Navigate to="/attendance" replace />;
+  return <DashboardPage />;
 }
 
 export default function App() {
@@ -30,12 +37,11 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route element={<Protected />}>
             <Route element={<AppLayout />}>
-              <Route index element={<DashboardPage />} />
+              <Route index element={<HomeRedirect />} />
               <Route path="attendance" element={<AttendancePage />} />
-              <Route path="revenues" element={<RevenuesPage />} />
               <Route path="payroll" element={<PayrollPage />} />
-              <Route path="account" element={<AccountPage />} />
               <Route element={<Protected roles={['ADMIN']} />}>
+                <Route path="revenues" element={<RevenuesPage />} />
                 <Route path="employees" element={<EmployeesPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="audit-logs" element={<AuditLogsPage />} />

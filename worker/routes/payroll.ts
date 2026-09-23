@@ -12,6 +12,20 @@ export const payrollRoutes = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 payrollRoutes.use('*', authMiddleware);
 
+function previousYearMonth(year: number, month: number): { year: number; month: number } {
+  if (month === 1) return { year: year - 1, month: 12 };
+  return { year, month: month - 1 };
+}
+
+function isCurrentOrPreviousMonth(year: number, month: number): boolean {
+  const now = parseYearMonth();
+  const prev = previousYearMonth(now.year, now.month);
+  return (
+    (year === now.year && month === now.month) ||
+    (year === prev.year && month === prev.month)
+  );
+}
+
 payrollRoutes.get('/', async (c) => {
   const user = c.get('user');
   const employeeId = c.req.query('employee_id');
@@ -28,16 +42,42 @@ payrollRoutes.get('/', async (c) => {
     if (!user.employee_id) return jsonError('No employee profile', 404);
     clauses.push('p.employee_id = ?');
     binds.push(user.employee_id);
+
+    if (year && month) {
+      try {
+        const ym = parseYearMonth(year, month);
+        if (!isCurrentOrPreviousMonth(ym.year, ym.month)) {
+          return jsonError('Employees may only view current and previous month payroll', 403);
+        }
+      } catch {
+        return jsonError('Invalid year/month', 400);
+      }
+    } else {
+      // Restrict to current + previous month only
+      const now = parseYearMonth();
+      const prev = previousYearMonth(now.year, now.month);
+      clauses.push(
+        '((p.year = ? AND p.month = ?) OR (p.year = ? AND p.month = ?))',
+      );
+      binds.push(now.year, now.month, prev.year, prev.month);
+    }
   } else if (employeeId) {
     clauses.push('p.employee_id = ?');
     binds.push(employeeId);
   }
 
-  if (year) {
+  if (user.role !== 'EMPLOYEE') {
+    if (year) {
+      clauses.push('p.year = ?');
+      binds.push(Number(year));
+    }
+    if (month) {
+      clauses.push('p.month = ?');
+      binds.push(Number(month));
+    }
+  } else if (year && month) {
     clauses.push('p.year = ?');
     binds.push(Number(year));
-  }
-  if (month) {
     clauses.push('p.month = ?');
     binds.push(Number(month));
   }
@@ -134,6 +174,80 @@ async function buildPayrollForEmployee(
     ...result,
   };
 }
+
+/** Employee: current month (live to-date) + previous month only. */
+payrollRoutes.get('/my-summary', requireRole('EMPLOYEE'), async (c) => {
+  const user = c.get('user');
+  if (!user.employee_id) return jsonError('No employee profile', 404);
+
+  const settings = await getSettings(c.env.DB, c.env.COMPANY_IP);
+  const current = parseYearMonth();
+  const previous = previousYearMonth(current.year, current.month);
+
+  const emp = await c.env.DB.prepare(
+    `SELECT id, name, employee_code, base_salary, commission_rate, insurance_rate, insurance_base
+     FROM employees WHERE id = ?`,
+  )
+    .bind(user.employee_id)
+    .first<{
+      id: string;
+      name: string;
+      employee_code: string;
+      base_salary: number;
+      commission_rate: number;
+      insurance_rate: number;
+      insurance_base: number;
+    }>();
+
+  if (!emp) return jsonError('Employee not found', 404);
+
+  const currentLive = await buildPayrollForEmployee(
+    c.env.DB,
+    emp,
+    current.year,
+    current.month,
+    settings.standard_work_days,
+    0,
+  );
+
+  const prevStored = await c.env.DB.prepare(
+    `SELECT p.*, e.name AS employee_name, e.employee_code
+     FROM payrolls p
+     JOIN employees e ON e.id = p.employee_id
+     WHERE p.employee_id = ? AND p.year = ? AND p.month = ?`,
+  )
+    .bind(user.employee_id, previous.year, previous.month)
+    .first();
+
+  let previousData: Record<string, unknown> | Awaited<ReturnType<typeof buildPayrollForEmployee>> =
+    prevStored ??
+    (await buildPayrollForEmployee(
+      c.env.DB,
+      emp,
+      previous.year,
+      previous.month,
+      settings.standard_work_days,
+      0,
+    ));
+
+  return c.json({
+    currency: settings.currency,
+    current: {
+      label: `${current.year}-${String(current.month).padStart(2, '0')}`,
+      year: current.year,
+      month: current.month,
+      source: 'live_to_date',
+      data: currentLive,
+    },
+    previous: {
+      label: `${previous.year}-${String(previous.month).padStart(2, '0')}`,
+      year: previous.year,
+      month: previous.month,
+      source: prevStored ? 'payroll' : 'live',
+      data: previousData,
+    },
+  });
+});
 
 payrollRoutes.post('/calculate', requireRole('ADMIN'), async (c) => {
   let body: z.infer<typeof calcSchema>;

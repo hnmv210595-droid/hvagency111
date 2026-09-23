@@ -54,8 +54,101 @@ function n(row: PayrollRow, a: keyof PayrollRow, b: keyof PayrollRow) {
   return Number(row[a] ?? row[b] ?? 0);
 }
 
+function EmployeePayrollView() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [summary, setSummary] = useState<{
+    current: { label: string; data: PayrollRow; source: string };
+    previous: { label: string; data: PayrollRow; source: string };
+  } | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    api<{
+      current: { label: string; data: PayrollRow; source: string };
+      previous: { label: string; data: PayrollRow; source: string };
+    }>('/api/payroll/my-summary')
+      .then(setSummary)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Lỗi tải lương'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState message={error} />;
+  if (!summary) return <EmptyState title="Chưa có dữ liệu lương" />;
+
+  const cards = [
+    { title: `Tháng này (${summary.current.label})`, period: summary.current, hint: 'Ước tính đến hôm nay' },
+    {
+      title: `Tháng trước (${summary.previous.label})`,
+      period: summary.previous,
+      hint: summary.previous.source === 'payroll' ? 'Theo bảng lương' : 'Ước tính',
+    },
+  ];
+
+  return (
+    <div>
+      <PageHeader
+        title="Lương của tôi"
+        description="Chỉ xem lương và hoa hồng của bạn — tháng này (đến hôm nay) và tháng trước"
+      />
+      <div className="grid gap-4 lg:grid-cols-2">
+        {cards.map((card) => {
+          const row = card.period.data;
+          return (
+            <section
+              key={card.title}
+              className="rounded-2xl border border-line/80 bg-white/80 p-5 dark:bg-brand-950/40 dark:border-brand-800"
+            >
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="font-semibold">{card.title}</h2>
+                <Badge tone="brand">{card.hint}</Badge>
+              </div>
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted">Ngày công tính lương</dt>
+                  <dd className="font-medium">
+                    {n(row, 'paid_days', 'paidDays')}/{row.standard_work_days}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted">Lương cơ bản hưởng</dt>
+                  <dd className="font-medium">
+                    {formatVnd(n(row, 'base_salary_paid', 'baseSalaryPaid'))}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted">Doanh thu</dt>
+                  <dd className="font-medium">{formatVnd(row.revenue)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted">Hoa hồng</dt>
+                  <dd className="font-medium">{formatVnd(row.commission)}</dd>
+                </div>
+                <div className="flex justify-between gap-3 border-t border-line pt-2 dark:border-brand-800">
+                  <dt className="font-medium">Thực nhận (ước tính)</dt>
+                  <dd className="text-lg font-semibold">
+                    {formatVnd(n(row, 'net_salary', 'netSalary'))}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function PayrollPage() {
   const { user } = useAuth();
+  if (user?.role === 'EMPLOYEE') {
+    return <EmployeePayrollView />;
+  }
+  return <AdminPayrollPage />;
+}
+
+function AdminPayrollPage() {
   const toast = useToast();
   const { year, month } = currentYearMonth();
   const [period, setPeriod] = useState({ year, month });
@@ -159,19 +252,15 @@ export function PayrollPage() {
                 </option>
               ))}
             </Select>
-            {user?.role === 'ADMIN' ? (
-              <>
-                <Button variant="secondary" disabled={busy} onClick={() => void calculate(true)}>
-                  Preview
-                </Button>
-                <Button disabled={busy} onClick={() => void calculate(false)}>
-                  Calculate
-                </Button>
-                <Button variant="secondary" onClick={() => void lockPeriod()}>
-                  Lock kỳ
-                </Button>
-              </>
-            ) : null}
+            <Button variant="secondary" disabled={busy} onClick={() => void calculate(true)}>
+              Preview
+            </Button>
+            <Button disabled={busy} onClick={() => void calculate(false)}>
+              Calculate
+            </Button>
+            <Button variant="secondary" onClick={() => void lockPeriod()}>
+              Lock kỳ
+            </Button>
           </div>
         }
       />
@@ -200,7 +289,7 @@ export function PayrollPage() {
                 <th className="px-2 py-2">BHXH</th>
                 <th className="px-2 py-2">Thực nhận</th>
                 <th className="px-2 py-2">TT</th>
-                {user?.role === 'ADMIN' && !preview ? <th className="px-2 py-2" /> : null}
+                {!preview ? <th className="px-2 py-2" /> : null}
               </tr>
             </thead>
             <tbody>
@@ -239,7 +328,7 @@ export function PayrollPage() {
                       <Badge tone="warning">PREVIEW</Badge>
                     )}
                   </td>
-                  {user?.role === 'ADMIN' && !preview && row.id ? (
+                  {!preview && row.id ? (
                     <td className="px-2 py-2">
                       {row.status === 'LOCKED' ? (
                         <Button size="sm" variant="ghost" onClick={() => void unlock(row.id!)}>

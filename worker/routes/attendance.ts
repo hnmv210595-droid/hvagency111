@@ -143,6 +143,65 @@ attendanceRoutes.post('/check-out', async (c) => {
   return c.json({ data: row });
 });
 
+const employeeMarkSchema = z.object({
+  status: z.enum(['PAID_LEAVE', 'UNPAID_LEAVE']),
+  note: z.string().max(500).nullable().optional(),
+});
+
+/** Employee self-mark paid/unpaid leave for today only. */
+attendanceRoutes.post('/mark', async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'EMPLOYEE' || !user.employee_id) {
+    return jsonError('Only employees can mark leave', 403);
+  }
+
+  let body: z.infer<typeof employeeMarkSchema>;
+  try {
+    body = employeeMarkSchema.parse(await c.req.json());
+  } catch (e) {
+    return jsonError('Invalid input', 400, e);
+  }
+
+  const settings = await getSettings(c.env.DB, c.env.COMPANY_IP);
+  const date = todayInTimezone(settings.timezone);
+  const now = nowInTimezone(settings.timezone);
+  const ip = c.get('clientIp');
+
+  const existing = await c.env.DB.prepare(
+    'SELECT * FROM attendance WHERE employee_id = ? AND date = ?',
+  )
+    .bind(user.employee_id, date)
+    .first<{ id: string; check_out: string | null }>();
+
+  if (existing?.check_out) {
+    return jsonError('Cannot change status after check-out', 409);
+  }
+
+  if (existing) {
+    await c.env.DB.prepare(
+      `UPDATE attendance SET status = ?, check_in = NULL, check_out = NULL, ip = ?, note = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+      .bind(body.status, ip, body.note ?? null, now, existing.id)
+      .run();
+    const row = await c.env.DB.prepare('SELECT * FROM attendance WHERE id = ?')
+      .bind(existing.id)
+      .first();
+    return c.json({ data: row });
+  }
+
+  const id = randomId();
+  await c.env.DB.prepare(
+    `INSERT INTO attendance (id, employee_id, date, check_in, check_out, status, ip, note, created_at, updated_at)
+     VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?)`,
+  )
+    .bind(id, user.employee_id, date, body.status, ip, body.note ?? null, now, now)
+    .run();
+
+  const row = await c.env.DB.prepare('SELECT * FROM attendance WHERE id = ?').bind(id).first();
+  return c.json({ data: row }, 201);
+});
+
 const adminUpdateSchema = z.object({
   status: z.enum(['PRESENT', 'PAID_LEAVE', 'UNPAID_LEAVE', 'ABSENT']),
   check_in: z.string().nullable().optional(),

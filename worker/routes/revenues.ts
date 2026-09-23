@@ -12,6 +12,9 @@ revenueRoutes.use('*', authMiddleware);
 
 revenueRoutes.get('/', async (c) => {
   const user = c.get('user');
+  if (user.role === 'EMPLOYEE') {
+    return jsonError('Forbidden', 403);
+  }
   const employeeId = c.req.query('employee_id');
   const year = c.req.query('year');
   const month = c.req.query('month');
@@ -22,11 +25,7 @@ revenueRoutes.get('/', async (c) => {
   const clauses: string[] = [];
   const binds: unknown[] = [];
 
-  if (user.role === 'EMPLOYEE') {
-    if (!user.employee_id) return jsonError('No employee profile', 404);
-    clauses.push('r.employee_id = ?');
-    binds.push(user.employee_id);
-  } else if (employeeId) {
+  if (employeeId) {
     clauses.push('r.employee_id = ?');
     binds.push(employeeId);
   }

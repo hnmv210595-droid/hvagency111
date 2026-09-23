@@ -102,6 +102,22 @@ export function AttendancePage() {
     }
   }
 
+  async function markLeave(status: 'PAID_LEAVE' | 'UNPAID_LEAVE') {
+    setBusy(true);
+    try {
+      await api('/api/attendance/mark', { method: 'POST', json: { status } });
+      toast.push(
+        status === 'PAID_LEAVE' ? 'Đã ghi nghỉ có lương' : 'Đã ghi nghỉ không lương',
+        'success',
+      );
+      await load();
+    } catch (e) {
+      toast.push(e instanceof Error ? e.message : 'Lỗi', 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveEdit(e: FormEvent) {
     e.preventDefault();
     if (!edit) return;
@@ -133,6 +149,112 @@ export function AttendancePage() {
   const tone = (s: string) =>
     s === 'PRESENT' ? 'success' : s === 'PAID_LEAVE' ? 'brand' : s === 'UNPAID_LEAVE' ? 'warning' : 'danger';
 
+  const todayRow = rows.find((r) => {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return r.date === fmt.format(new Date());
+  });
+
+  if (user?.role === 'EMPLOYEE') {
+    return (
+      <div>
+        <PageHeader
+          title="Điểm danh"
+          description="Chấm công hôm nay và xem lịch sử ngày công của bạn"
+        />
+
+        <div className="mb-6 grid gap-3 sm:grid-cols-2">
+          <Button className="h-14 text-base" disabled={busy} onClick={checkIn}>
+            Điểm danh (Check-in)
+          </Button>
+          <Button
+            className="h-14 text-base"
+            variant="secondary"
+            disabled={busy}
+            onClick={checkOut}
+          >
+            Check-out
+          </Button>
+          <Button
+            className="h-14 text-base"
+            variant="secondary"
+            disabled={busy}
+            onClick={() => void markLeave('PAID_LEAVE')}
+          >
+            Nghỉ có lương
+          </Button>
+          <Button
+            className="h-14 text-base"
+            variant="secondary"
+            disabled={busy}
+            onClick={() => void markLeave('UNPAID_LEAVE')}
+          >
+            Nghỉ không lương
+          </Button>
+        </div>
+
+        {todayRow ? (
+          <div className="mb-4 flex flex-wrap gap-2 text-sm">
+            <Badge tone={tone(todayRow.status) as 'success'}>Hôm nay: {todayRow.status}</Badge>
+            {todayRow.check_in ? <Badge tone="brand">In {todayRow.check_in.slice(11)}</Badge> : null}
+            {todayRow.check_out ? (
+              <Badge tone="brand">Out {todayRow.check_out.slice(11)}</Badge>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mb-4 text-sm text-muted">Chưa có trạng thái hôm nay</p>
+        )}
+
+        <div className="mb-4">
+          <Select
+            className="w-40"
+            value={period.month}
+            onChange={(e) => setPeriod((p) => ({ ...p, month: Number(e.target.value) }))}
+          >
+            {Array.from({ length: 12 }, (_, i) => (
+              <option key={i + 1} value={i + 1}>
+                Tháng {i + 1}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        {loading ? <LoadingState /> : null}
+        {error ? <ErrorState message={error} /> : null}
+        {!loading && rows.length === 0 ? <EmptyState title="Chưa có dữ liệu điểm danh" /> : null}
+
+        {rows.length > 0 ? (
+          <Table>
+            <thead className="bg-brand-50/70 text-xs uppercase text-muted dark:bg-brand-900/40">
+              <tr>
+                <th className="px-3 py-2">Ngày</th>
+                <th className="px-3 py-2">In</th>
+                <th className="px-3 py-2">Out</th>
+                <th className="px-3 py-2">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="border-t border-line dark:border-brand-800">
+                  <td className="px-3 py-2">{row.date}</td>
+                  <td className="px-3 py-2">{row.check_in?.slice(11) ?? '—'}</td>
+                  <td className="px-3 py-2">{row.check_out?.slice(11) ?? '—'}</td>
+                  <td className="px-3 py-2">
+                    <Badge tone={tone(row.status) as 'success'}>{row.status}</Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -140,18 +262,7 @@ export function AttendancePage() {
         description="Check-in / check-out và quản lý ngày công"
         actions={
           <div className="flex flex-wrap gap-2">
-            {user?.role === 'EMPLOYEE' ? (
-              <>
-                <Button disabled={busy} onClick={checkIn}>
-                  Check-in
-                </Button>
-                <Button variant="secondary" disabled={busy} onClick={checkOut}>
-                  Check-out
-                </Button>
-              </>
-            ) : (
-              <Button onClick={() => setAdminOpen(true)}>Nhập điểm danh</Button>
-            )}
+            <Button onClick={() => setAdminOpen(true)}>Nhập điểm danh</Button>
             <Select
               className="w-32"
               value={period.month}
