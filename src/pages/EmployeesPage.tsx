@@ -123,14 +123,17 @@ export function EmployeesPage() {
     }
   }
 
-  async function disable(id: string) {
-    if (!confirm('Khóa tài khoản nhân viên này?')) return;
+  async function deleteEmployee(emp: Employee) {
+    const ok = confirm(
+      `Xóa nhân viên "${emp.name}" (${emp.employee_code})?\n\nTài khoản sẽ bị khóa, không đăng nhập được. Dữ liệu chấm công/lương vẫn được giữ.`,
+    );
+    if (!ok) return;
     try {
-      await api(`/api/employees/${id}`, { method: 'DELETE' });
-      toast.push('Đã khóa nhân viên', 'success');
+      await api(`/api/employees/${emp.id}`, { method: 'DELETE' });
+      toast.push('Đã xóa nhân viên', 'success');
       await load();
     } catch (err) {
-      toast.push(err instanceof Error ? err.message : 'Lỗi khóa', 'error');
+      toast.push(err instanceof Error ? err.message : 'Lỗi xóa nhân viên', 'error');
     }
   }
 
@@ -237,8 +240,8 @@ export function EmployeesPage() {
                         Reset MK
                       </Button>
                       {emp.status === 'ACTIVE' ? (
-                        <Button size="sm" variant="danger" onClick={() => void disable(emp.id)}>
-                          Khóa
+                        <Button size="sm" variant="danger" onClick={() => void deleteEmployee(emp)}>
+                          Xóa
                         </Button>
                       ) : null}
                     </div>
