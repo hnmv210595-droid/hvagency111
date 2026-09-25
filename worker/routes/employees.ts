@@ -6,6 +6,15 @@ import { hashPassword, randomId } from '../lib/crypto';
 import { getSettings } from '../lib/settings';
 import { nowInTimezone } from '../lib/time';
 import { authMiddleware, requireRole } from '../middleware/auth';
+import { parsePercent } from '../../shared/percent';
+
+const percentSchema = z.preprocess((value) => {
+  try {
+    return parsePercent(value);
+  } catch {
+    return value;
+  }
+}, z.number().min(0).max(100));
 
 const employeeSchema = z.object({
   employee_code: z.string().min(1).max(50),
@@ -17,8 +26,8 @@ const employeeSchema = z.object({
   position: z.string().max(100).optional().nullable(),
   start_date: z.string().max(20).optional().nullable(),
   base_salary: z.number().min(0),
-  commission_rate: z.number().min(0).max(100),
-  insurance_rate: z.number().min(0).max(100).optional(),
+  commission_rate: percentSchema,
+  insurance_rate: percentSchema.optional(),
   insurance_base: z.number().min(0).optional(),
   password: z.string().min(8).max(200).optional(),
   status: z.enum(['ACTIVE', 'DISABLED']).optional(),

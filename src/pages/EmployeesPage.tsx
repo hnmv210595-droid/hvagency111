@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '@/lib/api';
-import { formatVnd } from '@/lib/utils';
+import { formatVnd, formatPercent, parsePercent } from '@/lib/utils';
 import {
   Badge,
   Button,
@@ -27,8 +27,8 @@ const emptyForm = {
   position: '',
   start_date: '',
   base_salary: 0,
-  commission_rate: 0,
-  insurance_rate: 0,
+  commission_rate: '0',
+  insurance_rate: '0',
   insurance_base: 0,
   password: '',
   status: 'ACTIVE' as 'ACTIVE' | 'DISABLED',
@@ -88,8 +88,8 @@ export function EmployeesPage() {
       position: emp.position ?? '',
       start_date: emp.start_date ?? '',
       base_salary: emp.base_salary,
-      commission_rate: emp.commission_rate,
-      insurance_rate: emp.insurance_rate,
+      commission_rate: formatPercent(emp.commission_rate),
+      insurance_rate: formatPercent(emp.insurance_rate),
       insurance_base: emp.insurance_base,
       password: '',
       status: emp.status,
@@ -104,8 +104,8 @@ export function EmployeesPage() {
         ...form,
         email: form.email || null,
         base_salary: Number(form.base_salary),
-        commission_rate: Number(form.commission_rate),
-        insurance_rate: Number(form.insurance_rate),
+        commission_rate: parsePercent(form.commission_rate),
+        insurance_rate: parsePercent(form.insurance_rate),
         insurance_base: Number(form.insurance_base),
         password: form.password || undefined,
       };
@@ -227,7 +227,7 @@ export function EmployeesPage() {
                   </td>
                   <td className="px-3 py-2">{emp.department || '—'}</td>
                   <td className="px-3 py-2">{formatVnd(emp.base_salary)}</td>
-                  <td className="px-3 py-2">{emp.commission_rate}%</td>
+                  <td className="px-3 py-2">{formatPercent(emp.commission_rate)}%</td>
                   <td className="px-3 py-2">
                     <Badge tone={emp.status === 'ACTIVE' ? 'success' : 'danger'}>{emp.status}</Badge>
                   </td>
@@ -310,12 +310,13 @@ export function EmployeesPage() {
             />
           </div>
           <div>
-            <Label>% doanh thu</Label>
+            <Label>% doanh thu / hoa hồng</Label>
             <Input
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              placeholder="VD: 1 hoặc 1.5"
               value={form.commission_rate}
-              onChange={(e) => setForm((f) => ({ ...f, commission_rate: Number(e.target.value) }))}
+              onChange={(e) => setForm((f) => ({ ...f, commission_rate: e.target.value }))}
             />
           </div>
           <div>
@@ -329,10 +330,11 @@ export function EmployeesPage() {
           <div>
             <Label>% BHXH</Label>
             <Input
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              placeholder="VD: 8 hoặc 8.5"
               value={form.insurance_rate}
-              onChange={(e) => setForm((f) => ({ ...f, insurance_rate: Number(e.target.value) }))}
+              onChange={(e) => setForm((f) => ({ ...f, insurance_rate: e.target.value }))}
             />
           </div>
           {!editing ? (
