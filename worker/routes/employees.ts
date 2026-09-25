@@ -303,20 +303,25 @@ employeeRoutes.post('/:id/reset-password', requireRole('ADMIN'), async (c) => {
 
 employeeRoutes.delete('/:id', requireRole('ADMIN'), async (c) => {
   const id = c.req.param('id');
-  const emp = await c.env.DB.prepare('SELECT user_id FROM employees WHERE id = ?')
+  const emp = await c.env.DB.prepare(
+    'SELECT id, user_id, name, employee_code FROM employees WHERE id = ?',
+  )
     .bind(id)
-    .first<{ user_id: string | null }>();
+    .first<{ id: string; user_id: string | null; name: string; employee_code: string }>();
   if (!emp) return jsonError('Not found', 404);
 
-  const now = nowInTimezone();
-  await c.env.DB.prepare('UPDATE employees SET status = ?, updated_at = ? WHERE id = ?')
-    .bind('DISABLED', now, id)
-    .run();
+  // Permanent delete: attendance/revenues/payrolls cascade via FK.
+  // Remove login sessions and the linked user account as well.
   if (emp.user_id) {
-    await c.env.DB.prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?')
-      .bind('DISABLED', now, emp.user_id)
-      .run();
     await c.env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(emp.user_id).run();
+  }
+
+  await c.env.DB.prepare('DELETE FROM employees WHERE id = ?').bind(id).run();
+
+  if (emp.user_id) {
+    await c.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(emp.user_id).run();
+  } else {
+    await c.env.DB.prepare('DELETE FROM users WHERE employee_id = ?').bind(id).run();
   }
 
   await writeAuditLog(c.env.DB, {
@@ -325,6 +330,11 @@ employeeRoutes.delete('/:id', requireRole('ADMIN'), async (c) => {
     targetType: 'employee',
     targetId: id,
     ip: c.get('clientIp'),
+    metadata: {
+      permanent: true,
+      name: emp.name,
+      employee_code: emp.employee_code,
+    },
   });
 
   return c.json({ ok: true });

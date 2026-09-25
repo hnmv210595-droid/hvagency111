@@ -125,12 +125,12 @@ export function EmployeesPage() {
 
   async function deleteEmployee(emp: Employee) {
     const ok = confirm(
-      `Xóa nhân viên "${emp.name}" (${emp.employee_code})?\n\nTài khoản sẽ bị khóa, không đăng nhập được. Dữ liệu chấm công/lương vẫn được giữ.`,
+      `XÓA VĨNH VIỄN nhân viên "${emp.name}" (${emp.employee_code})?\n\nToàn bộ hồ sơ, tài khoản, điểm danh, doanh thu và bảng lương liên quan sẽ bị xóa và không khôi phục được.`,
     );
     if (!ok) return;
     try {
       await api(`/api/employees/${emp.id}`, { method: 'DELETE' });
-      toast.push('Đã xóa nhân viên', 'success');
+      toast.push('Đã xóa vĩnh viễn nhân viên', 'success');
       await load();
     } catch (err) {
       toast.push(err instanceof Error ? err.message : 'Lỗi xóa nhân viên', 'error');
