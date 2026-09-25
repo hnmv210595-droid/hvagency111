@@ -19,6 +19,8 @@ export function formatNumber(amount: number | null | undefined): string {
   return new Intl.NumberFormat('vi-VN').format(amount);
 }
 
+export { formatPercent, parsePercent } from '../../shared/percent';
+
 export function currentYearMonth() {
   const fmt = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Ho_Chi_Minh',

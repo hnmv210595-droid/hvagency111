@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatVnd } from '@/lib/utils';
+import { formatVnd, formatPercent } from '@/lib/utils';
 import { Card, ErrorState, LoadingState, PageHeader, Badge } from '@/components/ui';
 import type { Employee } from '@shared/types';
 
@@ -52,9 +52,9 @@ export function AccountPage() {
             <Item label="Chức vụ" value={employee.position || '—'} />
             <Item label="Ngày vào" value={employee.start_date || '—'} />
             <Item label="Lương cơ bản" value={formatVnd(employee.base_salary)} />
-            <Item label="% doanh thu" value={`${employee.commission_rate}%`} />
+            <Item label="% doanh thu" value={`${formatPercent(employee.commission_rate)}%`} />
             <Item label="Căn cứ BHXH" value={formatVnd(employee.insurance_base)} />
-            <Item label="% BHXH" value={`${employee.insurance_rate}%`} />
+            <Item label="% BHXH" value={`${formatPercent(employee.insurance_rate)}%`} />
           </dl>
         </Card>
       )}

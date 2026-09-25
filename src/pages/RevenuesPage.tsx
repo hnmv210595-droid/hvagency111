@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { currentYearMonth, formatVnd } from '@/lib/utils';
+import { currentYearMonth, formatVnd, formatPercent } from '@/lib/utils';
 import {
   Button,
   EmptyState,
@@ -153,7 +153,7 @@ export function RevenuesPage() {
                     {row.year}-{String(row.month).padStart(2, '0')}
                   </td>
                   <td className="px-3 py-2 font-medium">{formatVnd(row.amount)}</td>
-                  <td className="px-3 py-2">{row.commission_rate ?? 0}%</td>
+                  <td className="px-3 py-2">{formatPercent(row.commission_rate)}%</td>
                   <td className="px-3 py-2">{formatVnd(commission)}</td>
                   <td className="px-3 py-2">{row.note || '—'}</td>
                 </tr>
