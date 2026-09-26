@@ -1,16 +1,48 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { Env, Variables } from '../env';
-import { jsonError } from '../lib/audit';
+import { writeAuditLog, jsonError } from '../lib/audit';
+import { randomId } from '../lib/crypto';
+import { nowInTimezone } from '../lib/time';
 import { telegramSendMessage, telegramSetWebhook, escapeHtml } from '../lib/telegram';
 import { sendMonthlyPayrollToTelegram } from '../services/payrollTelegram';
 import { authMiddleware, requireRole } from '../middleware/auth';
 
 export const telegramRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+const chatIdSchema = z
+  .string()
+  .trim()
+  .regex(/^-?\d{5,20}$/, 'Chat ID phải là số (vd. -5581029985 hoặc -100xxxxxxxxxx)');
+
+const groupSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  chat_id: chatIdSchema,
+  enabled: z.boolean().optional(),
+});
+
+type GroupRow = {
+  id: string;
+  name: string;
+  chat_id: string;
+  enabled: number;
+  created_at: string;
+  updated_at: string;
+};
+
+function mapGroup(row: GroupRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    chat_id: row.chat_id,
+    enabled: row.enabled === 1,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
 /**
- * Receive-bot webhook: reply with chat_id when someone messages the bot
- * (in private chat or after adding bot to a group).
+ * Receive-bot webhook: reply with chat_id when someone messages the bot.
  * No session auth — secured by optional Telegram secret_token header.
  */
 telegramRoutes.post('/webhook', async (c) => {
@@ -38,11 +70,7 @@ telegramRoutes.post('/webhook', async (c) => {
     return jsonError('Invalid JSON', 400);
   }
 
-  const chat =
-    update.message?.chat ??
-    update.my_chat_member?.chat ??
-    null;
-
+  const chat = update.message?.chat ?? update.my_chat_member?.chat ?? null;
   if (!chat?.id) {
     return c.json({ ok: true });
   }
@@ -56,7 +84,7 @@ telegramRoutes.post('/webhook', async (c) => {
     `Loại: ${escapeHtml(String(chat.type ?? 'unknown'))}`,
     title ? `Tên: ${title}` : '',
     ``,
-    `Copy Chat ID này vào Cloudflare Secret <b>TELEGRAM_CHAT_ID</b> để bot gửi lương.`,
+    `Vào website HV-Agency → <b>Telegram</b> → thêm nhóm với Chat ID này.`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -66,6 +94,137 @@ telegramRoutes.post('/webhook', async (c) => {
 });
 
 telegramRoutes.use('/admin/*', authMiddleware, requireRole('ADMIN'));
+
+telegramRoutes.get('/admin/groups', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, name, chat_id, enabled, created_at, updated_at
+     FROM telegram_groups
+     ORDER BY name ASC`,
+  ).all<GroupRow>();
+  return c.json({ data: (results ?? []).map(mapGroup) });
+});
+
+telegramRoutes.post('/admin/groups', async (c) => {
+  let body: z.infer<typeof groupSchema>;
+  try {
+    body = groupSchema.parse(await c.req.json());
+  } catch (e) {
+    return jsonError('Invalid input', 400, e);
+  }
+
+  const id = randomId();
+  const now = nowInTimezone();
+  const enabled = body.enabled === false ? 0 : 1;
+
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO telegram_groups (id, name, chat_id, enabled, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(id, body.name, body.chat_id, enabled, now, now)
+      .run();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('UNIQUE') || msg.includes('unique')) {
+      return jsonError('Chat ID đã tồn tại', 409);
+    }
+    throw e;
+  }
+
+  const user = c.get('user');
+  await writeAuditLog(c.env.DB, {
+    userId: user.id,
+    action: 'UPDATE_SETTINGS',
+    targetType: 'telegram_group',
+    targetId: id,
+    ip: c.get('clientIp'),
+    metadata: { op: 'create', chat_id: body.chat_id, name: body.name },
+  });
+
+  const row = await c.env.DB.prepare(
+    `SELECT id, name, chat_id, enabled, created_at, updated_at FROM telegram_groups WHERE id = ?`,
+  )
+    .bind(id)
+    .first<GroupRow>();
+  return c.json({ data: mapGroup(row!) }, 201);
+});
+
+telegramRoutes.put('/admin/groups/:id', async (c) => {
+  const id = c.req.param('id');
+  const existing = await c.env.DB.prepare(
+    `SELECT id FROM telegram_groups WHERE id = ?`,
+  )
+    .bind(id)
+    .first();
+  if (!existing) return jsonError('Not found', 404);
+
+  let body: z.infer<typeof groupSchema>;
+  try {
+    body = groupSchema.parse(await c.req.json());
+  } catch (e) {
+    return jsonError('Invalid input', 400, e);
+  }
+
+  const now = nowInTimezone();
+  const enabled = body.enabled === false ? 0 : 1;
+
+  try {
+    await c.env.DB.prepare(
+      `UPDATE telegram_groups
+       SET name = ?, chat_id = ?, enabled = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+      .bind(body.name, body.chat_id, enabled, now, id)
+      .run();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('UNIQUE') || msg.includes('unique')) {
+      return jsonError('Chat ID đã tồn tại', 409);
+    }
+    throw e;
+  }
+
+  const user = c.get('user');
+  await writeAuditLog(c.env.DB, {
+    userId: user.id,
+    action: 'UPDATE_SETTINGS',
+    targetType: 'telegram_group',
+    targetId: id,
+    ip: c.get('clientIp'),
+    metadata: { op: 'update', chat_id: body.chat_id, name: body.name, enabled },
+  });
+
+  const row = await c.env.DB.prepare(
+    `SELECT id, name, chat_id, enabled, created_at, updated_at FROM telegram_groups WHERE id = ?`,
+  )
+    .bind(id)
+    .first<GroupRow>();
+  return c.json({ data: mapGroup(row!) });
+});
+
+telegramRoutes.delete('/admin/groups/:id', async (c) => {
+  const id = c.req.param('id');
+  const existing = await c.env.DB.prepare(
+    `SELECT id, chat_id, name FROM telegram_groups WHERE id = ?`,
+  )
+    .bind(id)
+    .first<{ id: string; chat_id: string; name: string }>();
+  if (!existing) return jsonError('Not found', 404);
+
+  await c.env.DB.prepare(`DELETE FROM telegram_groups WHERE id = ?`).bind(id).run();
+
+  const user = c.get('user');
+  await writeAuditLog(c.env.DB, {
+    userId: user.id,
+    action: 'UPDATE_SETTINGS',
+    targetType: 'telegram_group',
+    targetId: id,
+    ip: c.get('clientIp'),
+    metadata: { op: 'delete', chat_id: existing.chat_id, name: existing.name },
+  });
+
+  return c.json({ ok: true });
+});
 
 /** Manually send payroll messages for a period (default: previous month). */
 telegramRoutes.post('/admin/send-payroll', async (c) => {

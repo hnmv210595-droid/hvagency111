@@ -114,6 +114,16 @@ export interface SystemSettings {
   timezone: string;
 }
 
+/** Telegram group that receives monthly payroll messages. */
+export interface TelegramGroup {
+  id: string;
+  name: string;
+  chat_id: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SessionUser {
   id: string;
   username: string;

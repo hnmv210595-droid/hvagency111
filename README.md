@@ -98,14 +98,14 @@ Biến môi trường:
 | `TIMEZONE` | Mặc định `Asia/Ho_Chi_Minh` |
 | `TELEGRAM_SEND_BOT_TOKEN` | Bot gửi lương (ngày 1) — **secret** |
 | `TELEGRAM_RECEIVE_BOT_TOKEN` | Bot trả lời chat_id — **secret** |
-| `TELEGRAM_CHAT_ID` | 1 nhóm Telegram cố định — **secret** |
+| `TELEGRAM_CHAT_ID` | (Tuỳ chọn) fallback nếu chưa có nhóm trong panel — **secret** |
 | `TELEGRAM_WEBHOOK_SECRET` | (Tuỳ chọn) bảo vệ webhook bot nhận — **secret** |
 
-## Telegram (2 bot, 1 nhóm)
+## Telegram (2 bot, nhiều nhóm)
 
-Hệ thống dùng **2 bot** và **1 nhóm cố định** cho tất cả nhân viên:
+Hệ thống dùng **2 bot**; danh sách nhóm nhận lương quản lý trên panel **Telegram** (Admin):
 
-1. **Send bot** (`TELEGRAM_SEND_BOT_TOKEN`): ngày 1 hàng tháng ~08:00 ICT (cron `0 1 1 * *` UTC) gửi tin lương tháng trước vào `TELEGRAM_CHAT_ID`. Mỗi NV một tin, format:
+1. **Send bot** (`TELEGRAM_SEND_BOT_TOKEN`): ngày 1 hàng tháng ~08:00 ICT (cron `0 1 1 * *` UTC) gửi tin lương tháng trước tới **mọi nhóm đang bật** trong D1. Mỗi NV × mỗi nhóm một tin, format:
 
 ```
 Tên NV: **Tên**
@@ -118,22 +118,20 @@ Thực Nhận: **… VNĐ**
 
 (Giá trị sau dấu `:` được bôi đậm bằng Telegram HTML `<b>`.)
 
-2. **Receive bot** (`TELEGRAM_RECEIVE_BOT_TOKEN`): webhook `POST /api/telegram/webhook` — khi nhắn bot hoặc thêm bot vào nhóm, bot trả về **Chat ID**. Copy vào secret `TELEGRAM_CHAT_ID`.
+2. **Receive bot** (`TELEGRAM_RECEIVE_BOT_TOKEN`): webhook `POST /api/telegram/webhook` — khi nhắn bot hoặc thêm bot vào nhóm, bot trả về **Chat ID**. Copy vào panel Telegram trên website (không cần secret `TELEGRAM_CHAT_ID` nữa; secret chỉ còn fallback nếu DB trống).
 
 Setup nhanh sau deploy:
 
 ```bash
 npx wrangler secret put TELEGRAM_SEND_BOT_TOKEN
 npx wrangler secret put TELEGRAM_RECEIVE_BOT_TOKEN
-npx wrangler secret put TELEGRAM_CHAT_ID
-# optional:
-npx wrangler secret put TELEGRAM_WEBHOOK_SECRET
+# optional fallback / webhook:
+# npx wrangler secret put TELEGRAM_CHAT_ID
+# npx wrangler secret put TELEGRAM_WEBHOOK_SECRET
+npm run db:migrate:remote
 ```
 
-Admin (đã đăng nhập) gọi:
-
-- `POST /api/telegram/admin/setup-receive-webhook` — gắn webhook bot nhận
-- `POST /api/telegram/admin/send-payroll` — gửi thử (body tuỳ chọn `{ "year": 2026, "month": 8 }`; mặc định tháng trước)
+Admin UI: **Telegram** — thêm/sửa/xóa nhóm (`name` + `chat_id` dạng `-5581029985`), bật/tắt, gắn webhook, gửi thử.
 
 Ưu tiên gửi bản `LOCKED`; nếu chưa khóa thì gửi `CALCULATED`.
 

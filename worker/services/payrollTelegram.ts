@@ -10,14 +10,28 @@ function previousYearMonth(year: number, month: number): { year: number; month: 
 export interface SendPayrollResult {
   year: number;
   month: number;
+  groups: number;
   sent: number;
   failed: number;
   skipped: number;
   errors: string[];
 }
 
+async function resolveTargetChatIds(env: Env): Promise<string[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT chat_id FROM telegram_groups WHERE enabled = 1 ORDER BY name ASC`,
+  ).all<{ chat_id: string }>();
+
+  const fromDb = (results ?? []).map((r) => r.chat_id.trim()).filter(Boolean);
+  if (fromDb.length > 0) return [...new Set(fromDb)];
+
+  // Back-compat: single secret if DB has no enabled groups yet
+  const fallback = env.TELEGRAM_CHAT_ID?.trim();
+  return fallback ? [fallback] : [];
+}
+
 /**
- * Send each employee's payroll for a period to the fixed Telegram group.
+ * Send each employee's payroll for a period to all enabled Telegram groups.
  * Default period = previous calendar month (runs on day 1).
  */
 export async function sendMonthlyPayrollToTelegram(
@@ -25,15 +39,28 @@ export async function sendMonthlyPayrollToTelegram(
   opts?: { year?: number; month?: number },
 ): Promise<SendPayrollResult> {
   const token = env.TELEGRAM_SEND_BOT_TOKEN?.trim();
-  const chatId = env.TELEGRAM_CHAT_ID?.trim();
-  if (!token || !chatId) {
+  const chatIds = await resolveTargetChatIds(env);
+
+  if (!token) {
     return {
       year: 0,
       month: 0,
+      groups: 0,
       sent: 0,
       failed: 0,
       skipped: 0,
-      errors: ['TELEGRAM_SEND_BOT_TOKEN or TELEGRAM_CHAT_ID is not configured'],
+      errors: ['TELEGRAM_SEND_BOT_TOKEN is not configured'],
+    };
+  }
+  if (chatIds.length === 0) {
+    return {
+      year: 0,
+      month: 0,
+      groups: 0,
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      errors: ['No enabled Telegram groups — add chat_id in Telegram panel'],
     };
   }
 
@@ -63,7 +90,6 @@ export async function sendMonthlyPayrollToTelegram(
     }>();
 
   const rows = results ?? [];
-  // Prefer LOCKED; if none locked, send CALCULATED rows
   const locked = rows.filter((r) => r.status === 'LOCKED');
   const toSend = locked.length > 0 ? locked : rows.filter((r) => r.status === 'CALCULATED');
 
@@ -82,21 +108,22 @@ export async function sendMonthlyPayrollToTelegram(
       netSalary: row.net_salary,
     });
 
-    const result = await telegramSendMessage(token, chatId, text);
-    if (result.ok) {
-      sent += 1;
-    } else {
-      failed += 1;
-      errors.push(`${row.employee_name}: ${result.description ?? 'send failed'}`);
+    for (const chatId of chatIds) {
+      const result = await telegramSendMessage(token, chatId, text);
+      if (result.ok) {
+        sent += 1;
+      } else {
+        failed += 1;
+        errors.push(`${row.employee_name} → ${chatId}: ${result.description ?? 'send failed'}`);
+      }
+      await new Promise((r) => setTimeout(r, 50));
     }
-
-    // Soft rate-limit Telegram API
-    await new Promise((r) => setTimeout(r, 50));
   }
 
   return {
     year: target.year,
     month: target.month,
+    groups: chatIds.length,
     sent,
     failed,
     skipped: rows.length - toSend.length,

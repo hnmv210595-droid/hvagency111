@@ -8,6 +8,7 @@ import {
   FileBarChart2,
   ScrollText,
   Settings,
+  MessageCircle,
   LogOut,
   Moon,
   Sun,
@@ -27,6 +28,7 @@ const adminNav = [
   { to: '/payroll', label: 'Bảng lương', icon: Banknote },
   { to: '/reports', label: 'Báo cáo', icon: FileBarChart2 },
   { to: '/audit-logs', label: 'Audit Logs', icon: ScrollText },
+  { to: '/telegram', label: 'Telegram', icon: MessageCircle },
   { to: '/settings', label: 'Cài đặt', icon: Settings },
 ];
 
