@@ -1,6 +1,7 @@
 import app from './app';
 import type { Env } from './env';
 import { ensureAdminFromSecrets, type AdminBootstrapResult } from './lib/bootstrap-admin';
+import { sendMonthlyPayrollToTelegram } from './services/payrollTelegram';
 
 let adminBootstrap: Promise<AdminBootstrapResult> | null = null;
 
@@ -46,6 +47,9 @@ export default {
           has_admin_password_secret: Boolean(env.ADMIN_PASSWORD?.trim()),
           has_session_secret: Boolean(env.SESSION_SECRET?.trim()),
           has_db: Boolean(env.DB),
+          has_telegram_send: Boolean(env.TELEGRAM_SEND_BOT_TOKEN?.trim()),
+          has_telegram_receive: Boolean(env.TELEGRAM_RECEIVE_BOT_TOKEN?.trim()),
+          has_telegram_chat_id: Boolean(env.TELEGRAM_CHAT_ID?.trim()),
           bootstrap,
         });
       }
@@ -57,5 +61,11 @@ export default {
     }
 
     return new Response('Not found', { status: 404 });
+  },
+
+  /** Day 1 ~08:00 ICT: send previous month payroll to fixed Telegram group. */
+  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+    const result = await sendMonthlyPayrollToTelegram(env);
+    console.log('Telegram monthly payroll', JSON.stringify(result));
   },
 };

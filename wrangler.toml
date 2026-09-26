@@ -22,7 +22,16 @@ LOGIN_RATE_WINDOW_MINUTES = "15"
 TIMEZONE = "Asia/Ho_Chi_Minh"
 CURRENCY = "VNĐ"
 
+# Cron: 01:00 UTC on day 1 ≈ 08:00 Asia/Ho_Chi_Minh — send previous month payroll
+[triggers]
+crons = ["0 1 1 * *"]
+
 # Production secrets (do not commit):
 #   npx wrangler secret put SESSION_SECRET
 #   npx wrangler secret put ADMIN_PASSWORD
 # Optional: npx wrangler secret put ADMIN_USERNAME  (default Admin111)
+# Telegram (2 bots + 1 fixed group):
+#   npx wrangler secret put TELEGRAM_SEND_BOT_TOKEN
+#   npx wrangler secret put TELEGRAM_RECEIVE_BOT_TOKEN
+#   npx wrangler secret put TELEGRAM_CHAT_ID
+# Optional: npx wrangler secret put TELEGRAM_WEBHOOK_SECRET

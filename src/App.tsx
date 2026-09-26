@@ -11,6 +11,7 @@ import { PayrollPage } from '@/pages/PayrollPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { AuditLogsPage } from '@/pages/AuditLogsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { TelegramPage } from '@/pages/TelegramPage';
 import { LoadingState } from '@/components/ui';
 
 function Protected({ roles }: { roles?: Array<'ADMIN' | 'EMPLOYEE'> }) {
@@ -45,6 +46,7 @@ export default function App() {
                 <Route path="employees" element={<EmployeesPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="audit-logs" element={<AuditLogsPage />} />
+                <Route path="telegram" element={<TelegramPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
             </Route>
