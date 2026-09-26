@@ -9,6 +9,7 @@ import { revenueRoutes } from './routes/revenues';
 import { payrollRoutes } from './routes/payroll';
 import { dashboardRoutes } from './routes/dashboard';
 import { settingsRoutes, reportRoutes, auditRoutes } from './routes/settings';
+import { telegramRoutes } from './routes/telegram';
 import { authMiddleware } from './middleware/auth';
 import { jsonError } from './lib/audit';
 
@@ -64,6 +65,7 @@ app.route('/api/dashboard', dashboardRoutes);
 app.route('/api/settings', settingsRoutes);
 app.route('/api/reports', reportRoutes);
 app.route('/api/audit-logs', auditRoutes);
+app.route('/api/telegram', telegramRoutes);
 
 app.notFound((c) => {
   if (c.req.path.startsWith('/api/')) {

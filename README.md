@@ -96,6 +96,46 @@ Biến môi trường:
 | `SESSION_TTL_HOURS` | Thời hạn session (mặc định 24) |
 | `LOGIN_RATE_LIMIT` | Số lần login sai / cửa sổ |
 | `TIMEZONE` | Mặc định `Asia/Ho_Chi_Minh` |
+| `TELEGRAM_SEND_BOT_TOKEN` | Bot gửi lương (ngày 1) — **secret** |
+| `TELEGRAM_RECEIVE_BOT_TOKEN` | Bot trả lời chat_id — **secret** |
+| `TELEGRAM_CHAT_ID` | 1 nhóm Telegram cố định — **secret** |
+| `TELEGRAM_WEBHOOK_SECRET` | (Tuỳ chọn) bảo vệ webhook bot nhận — **secret** |
+
+## Telegram (2 bot, 1 nhóm)
+
+Hệ thống dùng **2 bot** và **1 nhóm cố định** cho tất cả nhân viên:
+
+1. **Send bot** (`TELEGRAM_SEND_BOT_TOKEN`): ngày 1 hàng tháng ~08:00 ICT (cron `0 1 1 * *` UTC) gửi tin lương tháng trước vào `TELEGRAM_CHAT_ID`. Mỗi NV một tin, format:
+
+```
+Tên NV: **Tên**
+Tháng: **MM/YYYY**
+Lương CB: **… VNĐ**
+HH: **… VNĐ**
+Nghỉ không lương: **số ngày**
+Thực Nhận: **… VNĐ**
+```
+
+(Giá trị sau dấu `:` được bôi đậm bằng Telegram HTML `<b>`.)
+
+2. **Receive bot** (`TELEGRAM_RECEIVE_BOT_TOKEN`): webhook `POST /api/telegram/webhook` — khi nhắn bot hoặc thêm bot vào nhóm, bot trả về **Chat ID**. Copy vào secret `TELEGRAM_CHAT_ID`.
+
+Setup nhanh sau deploy:
+
+```bash
+npx wrangler secret put TELEGRAM_SEND_BOT_TOKEN
+npx wrangler secret put TELEGRAM_RECEIVE_BOT_TOKEN
+npx wrangler secret put TELEGRAM_CHAT_ID
+# optional:
+npx wrangler secret put TELEGRAM_WEBHOOK_SECRET
+```
+
+Admin (đã đăng nhập) gọi:
+
+- `POST /api/telegram/admin/setup-receive-webhook` — gắn webhook bot nhận
+- `POST /api/telegram/admin/send-payroll` — gửi thử (body tuỳ chọn `{ "year": 2026, "month": 8 }`; mặc định tháng trước)
+
+Ưu tiên gửi bản `LOCKED`; nếu chưa khóa thì gửi `CALCULATED`.
 
 ## Bảo mật
 
