@@ -116,6 +116,15 @@ describe('IP restriction helpers', () => {
     expect(isIpAllowed('8.8.8.8', allowed)).toBe(false);
     expect(isIpAllowed('unknown', allowed)).toBe(false);
   });
+
+  it('supports IPv4 CIDR ranges for dynamic company IPs', () => {
+    const allowed = ['115.76.54.0/24'];
+    expect(isIpAllowed('115.76.54.148', allowed)).toBe(true);
+    expect(isIpAllowed('115.76.54.149', allowed)).toBe(true);
+    expect(isIpAllowed('115.76.55.1', allowed)).toBe(false);
+    expect(isIpAllowed('115.76.54.148', ['115.76.54.149'])).toBe(false);
+    expect(isIpAllowed('115.76.54.148', ['115.76.54.0/33'])).toBe(false);
+  });
 });
 
 describe('Auth / RBAC policy (unit)', () => {

@@ -51,7 +51,36 @@ export function parseCompanyIps(
   return Array.from(set);
 }
 
+function ipv4ToInt(ip: string): number | null {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return null;
+  let n = 0;
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part)) return null;
+    const v = Number(part);
+    if (v > 255) return null;
+    n = n * 256 + v;
+  }
+  return n;
+}
+
+/** IPv4 CIDR match, e.g. 115.76.54.148 in 115.76.54.0/24. */
+function ipv4InCidr(ip: string, cidr: string): boolean {
+  const [base, bitsRaw] = cidr.split('/');
+  const bits = Number(bitsRaw);
+  if (!Number.isInteger(bits) || bits < 0 || bits > 32) return false;
+  const ipInt = ipv4ToInt(ip);
+  const baseInt = ipv4ToInt(base ?? '');
+  if (ipInt == null || baseInt == null) return false;
+  if (bits === 0) return true;
+  const block = 2 ** (32 - bits);
+  return Math.floor(ipInt / block) === Math.floor(baseInt / block);
+}
+
+/** Allowed entries may be exact IPs or IPv4 CIDR ranges (e.g. 115.76.54.0/24). */
 export function isIpAllowed(clientIp: string, allowedIps: string[]): boolean {
   if (!clientIp || clientIp === 'unknown') return false;
-  return allowedIps.includes(clientIp);
+  return allowedIps.some((entry) =>
+    entry.includes('/') ? ipv4InCidr(clientIp, entry) : entry === clientIp,
+  );
 }

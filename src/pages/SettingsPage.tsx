@@ -78,7 +78,7 @@ export function SettingsPage() {
             />
           </div>
           <div className="sm:col-span-2">
-            <Label>Company IP (mỗi dòng hoặc cách bằng dấu phẩy)</Label>
+            <Label>Company IP (mỗi dòng hoặc cách bằng dấu phẩy; hỗ trợ dải, vd. 115.76.54.0/24)</Label>
             <textarea
               className="min-h-24 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm dark:bg-brand-950/40 dark:border-brand-700"
               value={ipsText}

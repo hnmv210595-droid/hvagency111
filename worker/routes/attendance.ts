@@ -202,6 +202,248 @@ attendanceRoutes.post('/mark', async (c) => {
   return c.json({ data: row }, 201);
 });
 
+const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Giờ dạng HH:mm');
+
+const makeupRequestSchema = z
+  .object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    check_in: timeSchema,
+    check_out: timeSchema.nullable().optional(),
+    reason: z.string().trim().min(3).max(500),
+  })
+  .refine((v) => !v.check_out || v.check_out > v.check_in, {
+    message: 'Giờ ra phải sau giờ vào',
+    path: ['check_out'],
+  });
+
+function previousMonthStart(today: string): string {
+  const y = Number(today.slice(0, 4));
+  const m = Number(today.slice(5, 7));
+  const py = m === 1 ? y - 1 : y;
+  const pm = m === 1 ? 12 : m - 1;
+  return `${py}-${String(pm).padStart(2, '0')}-01`;
+}
+
+/** Employee submits a make-up attendance request (needs admin approval). */
+attendanceRoutes.post('/requests', async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'EMPLOYEE' || !user.employee_id) {
+    return jsonError('Only employees can request make-up attendance', 403);
+  }
+
+  let body: z.infer<typeof makeupRequestSchema>;
+  try {
+    body = makeupRequestSchema.parse(await c.req.json());
+  } catch (e) {
+    return jsonError('Invalid input', 400, e);
+  }
+
+  const settings = await getSettings(c.env.DB, c.env.COMPANY_IP);
+  const today = todayInTimezone(settings.timezone);
+  if (body.date > today) {
+    return jsonError('Không thể điểm danh bù cho ngày trong tương lai', 400);
+  }
+  if (body.date < previousMonthStart(today)) {
+    return jsonError('Chỉ điểm danh bù trong tháng này hoặc tháng trước', 400);
+  }
+
+  const attended = await c.env.DB.prepare(
+    `SELECT check_in FROM attendance WHERE employee_id = ? AND date = ?`,
+  )
+    .bind(user.employee_id, body.date)
+    .first<{ check_in: string | null }>();
+  if (attended?.check_in) {
+    return jsonError('Ngày này đã có check-in', 409);
+  }
+
+  const pending = await c.env.DB.prepare(
+    `SELECT id FROM attendance_requests WHERE employee_id = ? AND date = ? AND status = 'PENDING'`,
+  )
+    .bind(user.employee_id, body.date)
+    .first();
+  if (pending) {
+    return jsonError('Ngày này đã có yêu cầu đang chờ duyệt', 409);
+  }
+
+  const now = nowInTimezone(settings.timezone);
+  const id = randomId();
+  await c.env.DB.prepare(
+    `INSERT INTO attendance_requests (id, employee_id, date, check_in, check_out, reason, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)`,
+  )
+    .bind(
+      id,
+      user.employee_id,
+      body.date,
+      `${body.date}T${body.check_in}:00`,
+      body.check_out ? `${body.date}T${body.check_out}:00` : null,
+      body.reason,
+      now,
+      now,
+    )
+    .run();
+
+  const row = await c.env.DB.prepare('SELECT * FROM attendance_requests WHERE id = ?')
+    .bind(id)
+    .first();
+  return c.json({ data: row }, 201);
+});
+
+/** Employee: own requests. Admin: all requests, optional ?status= filter. */
+attendanceRoutes.get('/requests', async (c) => {
+  const user = c.get('user');
+  const status = c.req.query('status');
+
+  const clauses: string[] = [];
+  const binds: unknown[] = [];
+  if (user.role === 'EMPLOYEE') {
+    if (!user.employee_id) return jsonError('No employee profile', 404);
+    clauses.push('r.employee_id = ?');
+    binds.push(user.employee_id);
+  }
+  if (status && ['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
+    clauses.push('r.status = ?');
+    binds.push(status);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT r.*, e.name AS employee_name, e.employee_code
+     FROM attendance_requests r
+     JOIN employees e ON e.id = r.employee_id
+     ${where}
+     ORDER BY r.created_at DESC
+     LIMIT 200`,
+  )
+    .bind(...binds)
+    .all();
+
+  return c.json({ data: results ?? [] });
+});
+
+const reviewSchema = z.object({
+  review_note: z.string().max(500).nullable().optional(),
+});
+
+attendanceRoutes.post('/requests/:id/approve', requireRole('ADMIN'), async (c) => {
+  const id = c.req.param('id');
+  let body: z.infer<typeof reviewSchema> = {};
+  try {
+    if (c.req.header('content-type')?.includes('application/json')) {
+      body = reviewSchema.parse(await c.req.json());
+    }
+  } catch (e) {
+    return jsonError('Invalid input', 400, e);
+  }
+
+  const req = await c.env.DB.prepare('SELECT * FROM attendance_requests WHERE id = ?')
+    .bind(id)
+    .first<{
+      id: string;
+      employee_id: string;
+      date: string;
+      check_in: string | null;
+      check_out: string | null;
+      reason: string;
+      status: string;
+    }>();
+  if (!req) return jsonError('Not found', 404);
+  if (req.status !== 'PENDING') return jsonError('Yêu cầu đã được xử lý', 409);
+
+  const year = Number(req.date.slice(0, 4));
+  const month = Number(req.date.slice(5, 7));
+  const locked = await c.env.DB.prepare(
+    `SELECT id FROM payrolls WHERE employee_id = ? AND year = ? AND month = ? AND status = 'LOCKED'`,
+  )
+    .bind(req.employee_id, year, month)
+    .first();
+  if (locked) {
+    return jsonError('Bảng lương tháng này đã khóa — mở khóa trước khi duyệt', 409);
+  }
+
+  const now = nowInTimezone();
+  const note = `Điểm danh bù: ${req.reason}`;
+  await c.env.DB.prepare(
+    `INSERT INTO attendance (id, employee_id, date, check_in, check_out, status, ip, note, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'PRESENT', NULL, ?, ?, ?)
+     ON CONFLICT(employee_id, date) DO UPDATE SET
+       status = 'PRESENT',
+       check_in = excluded.check_in,
+       check_out = excluded.check_out,
+       note = excluded.note,
+       updated_at = excluded.updated_at`,
+  )
+    .bind(randomId(), req.employee_id, req.date, req.check_in, req.check_out, note, now, now)
+    .run();
+
+  const reviewer = c.get('user');
+  await c.env.DB.prepare(
+    `UPDATE attendance_requests
+     SET status = 'APPROVED', reviewed_by = ?, reviewed_at = ?, review_note = ?, updated_at = ?
+     WHERE id = ?`,
+  )
+    .bind(reviewer.id, now, body.review_note ?? null, now, id)
+    .run();
+
+  await writeAuditLog(c.env.DB, {
+    userId: reviewer.id,
+    action: 'UPDATE_ATTENDANCE',
+    targetType: 'attendance_request',
+    targetId: id,
+    ip: c.get('clientIp'),
+    metadata: { op: 'approve', employee_id: req.employee_id, date: req.date },
+  });
+
+  const row = await c.env.DB.prepare('SELECT * FROM attendance_requests WHERE id = ?')
+    .bind(id)
+    .first();
+  return c.json({ data: row });
+});
+
+attendanceRoutes.post('/requests/:id/reject', requireRole('ADMIN'), async (c) => {
+  const id = c.req.param('id');
+  let body: z.infer<typeof reviewSchema> = {};
+  try {
+    if (c.req.header('content-type')?.includes('application/json')) {
+      body = reviewSchema.parse(await c.req.json());
+    }
+  } catch (e) {
+    return jsonError('Invalid input', 400, e);
+  }
+
+  const req = await c.env.DB.prepare(
+    'SELECT id, employee_id, date, status FROM attendance_requests WHERE id = ?',
+  )
+    .bind(id)
+    .first<{ id: string; employee_id: string; date: string; status: string }>();
+  if (!req) return jsonError('Not found', 404);
+  if (req.status !== 'PENDING') return jsonError('Yêu cầu đã được xử lý', 409);
+
+  const now = nowInTimezone();
+  const reviewer = c.get('user');
+  await c.env.DB.prepare(
+    `UPDATE attendance_requests
+     SET status = 'REJECTED', reviewed_by = ?, reviewed_at = ?, review_note = ?, updated_at = ?
+     WHERE id = ?`,
+  )
+    .bind(reviewer.id, now, body.review_note ?? null, now, id)
+    .run();
+
+  await writeAuditLog(c.env.DB, {
+    userId: reviewer.id,
+    action: 'UPDATE_ATTENDANCE',
+    targetType: 'attendance_request',
+    targetId: id,
+    ip: c.get('clientIp'),
+    metadata: { op: 'reject', employee_id: req.employee_id, date: req.date },
+  });
+
+  const row = await c.env.DB.prepare('SELECT * FROM attendance_requests WHERE id = ?')
+    .bind(id)
+    .first();
+  return c.json({ data: row });
+});
+
 const adminUpdateSchema = z.object({
   status: z.enum(['PRESENT', 'PAID_LEAVE', 'UNPAID_LEAVE', 'ABSENT']),
   check_in: z.string().nullable().optional(),

@@ -92,7 +92,10 @@ authRoutes.post('/login', async (c) => {
         metadata: { success: false, reason: 'IP_RESTRICTED', ip },
         timezone: settings.timezone,
       });
-      return jsonError('Employee login is only allowed from company network', 403);
+      return jsonError(
+        `Nhân viên chỉ đăng nhập được từ mạng công ty. IP hiện tại: ${ip} — nhờ Admin thêm IP này trong Cài đặt.`,
+        403,
+      );
     }
   }
 
