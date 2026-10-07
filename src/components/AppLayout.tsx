@@ -10,12 +10,10 @@ import {
   Settings,
   MessageCircle,
   LogOut,
-  Moon,
-  Sun,
   Menu,
   X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -40,13 +38,7 @@ const employeeNav = [
 export function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [dark, setDark] = useState(() => localStorage.getItem('hv-theme') === 'dark');
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-    localStorage.setItem('hv-theme', dark ? 'dark' : 'light');
-  }, [dark]);
 
   const nav = user?.role === 'ADMIN' ? adminNav : employeeNav;
 
@@ -61,7 +53,7 @@ export function AppLayout() {
         <div className="mb-8 flex items-start justify-between gap-2">
           <div>
             <p className="font-display text-xl font-semibold tracking-tight text-brand-700 dark:text-brand-300">
-              HV-Agency
+              Two Digital
             </p>
             <p className="text-xs text-muted dark:text-brand-200">Internal</p>
           </div>
@@ -81,7 +73,7 @@ export function AppLayout() {
                 cn(
                   'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition',
                   isActive
-                    ? 'bg-brand-600 text-white shadow-sm'
+                    ? 'bg-brand-500 text-black shadow-[0_0_14px_rgba(0,255,102,0.35)]'
                     : 'text-muted hover:bg-brand-50 hover:text-ink dark:text-brand-200 dark:hover:bg-brand-900',
                 )
               }
@@ -98,14 +90,6 @@ export function AppLayout() {
             <p className="text-xs text-muted dark:text-brand-300">{user?.role}</p>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              className="flex-1"
-              type="button"
-              onClick={() => setDark((v) => !v)}
-            >
-              {dark ? <Sun size={16} /> : <Moon size={16} />}
-            </Button>
             <Button
               variant="secondary"
               className="flex-1"
@@ -134,7 +118,7 @@ export function AppLayout() {
           <button onClick={() => setOpen(true)} aria-label="Open menu">
             <Menu size={20} />
           </button>
-          <p className="font-semibold text-brand-700 dark:text-brand-300">HV-Agency Internal</p>
+          <p className="font-semibold text-brand-700 dark:text-brand-300">Two Digital</p>
           <span className="w-5" />
         </header>
         <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">

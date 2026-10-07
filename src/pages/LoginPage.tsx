@@ -38,13 +38,13 @@ export function LoginPage() {
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{
           backgroundImage:
-            'linear-gradient(120deg, rgba(41,102,86,.15), transparent 40%), radial-gradient(circle at 80% 20%, rgba(53,127,107,.2), transparent 35%)',
+            'linear-gradient(120deg, rgba(0,255,102,.12), transparent 40%), radial-gradient(circle at 80% 20%, rgba(0,255,102,.16), transparent 35%)',
         }}
       />
       <Card className="relative w-full max-w-md animate-[fadeIn_.4s_ease]">
         <div className="mb-6">
           <p className="font-display text-3xl font-semibold tracking-tight text-brand-700 dark:text-brand-300">
-            HV-Agency
+            Two Digital
           </p>
           <p className="mt-1 text-sm text-muted dark:text-brand-200">
             Hệ thống quản lý nhân sự & lương nội bộ
