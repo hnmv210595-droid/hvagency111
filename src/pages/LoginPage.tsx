@@ -38,7 +38,7 @@ export function LoginPage() {
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{
           backgroundImage:
-            'linear-gradient(120deg, rgba(0,255,102,.12), transparent 40%), radial-gradient(circle at 80% 20%, rgba(0,255,102,.16), transparent 35%)',
+            'linear-gradient(120deg, rgba(0,180,255,.14), transparent 40%), radial-gradient(circle at 80% 20%, rgba(0,180,255,.18), transparent 35%)',
         }}
       />
       <Card className="relative w-full max-w-md animate-[fadeIn_.4s_ease]">

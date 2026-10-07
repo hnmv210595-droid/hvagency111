@@ -5,24 +5,24 @@
 @theme {
   --font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Roboto", ui-sans-serif, system-ui, sans-serif;
-  --color-brand-50: #ecfff3;
-  --color-brand-100: #c9ffdf;
-  --color-brand-200: #94ffc0;
-  --color-brand-300: #5cff9d;
-  --color-brand-400: #2bff7e;
-  --color-brand-500: #00ff66;
-  --color-brand-600: #00e05a;
-  --color-brand-700: #1f6b3d;
-  --color-brand-800: #17402a;
-  --color-brand-900: #0e2a1a;
-  --color-brand-950: #07120c;
-  --color-surface: #050806;
-  --color-ink: #e8fff0;
-  --color-muted: #8fa89a;
-  --color-line: #1f3a2a;
+  --color-brand-50: #e6f8ff;
+  --color-brand-100: #c2eeff;
+  --color-brand-200: #8fe0ff;
+  --color-brand-300: #5cd2ff;
+  --color-brand-400: #2ec4ff;
+  --color-brand-500: #00b4ff;
+  --color-brand-600: #009be0;
+  --color-brand-700: #1a4f6b;
+  --color-brand-800: #143a52;
+  --color-brand-900: #0c2638;
+  --color-brand-950: #06121c;
+  --color-surface: #04070a;
+  --color-ink: #e8f6ff;
+  --color-muted: #8ea4b5;
+  --color-line: #1d3447;
   --color-danger: #ff4d4f;
   --color-warning: #ffb020;
-  --color-success: #00ff66;
+  --color-success: #22e39a;
   --radius-md: 0.625rem;
   --radius-lg: 0.875rem;
   --radius-xl: 1.125rem;
@@ -43,14 +43,14 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(0, 255, 102, 0.1), transparent 60%),
-    radial-gradient(900px 400px at 100% 0%, rgba(0, 255, 102, 0.06), transparent 50%),
-    linear-gradient(180deg, #050806 0%, #000000 100%);
+    radial-gradient(1200px 500px at 10% -10%, rgba(0, 180, 255, 0.12), transparent 60%),
+    radial-gradient(900px 400px at 100% 0%, rgba(0, 180, 255, 0.07), transparent 50%),
+    linear-gradient(180deg, #04070a 0%, #000000 100%);
   color: var(--color-ink);
 }
 
 ::selection {
-  background: rgba(0, 255, 102, 0.35);
+  background: rgba(0, 180, 255, 0.35);
   color: #000;
 }
 

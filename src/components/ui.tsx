@@ -18,7 +18,7 @@ export function Button({
         size === 'md' && 'h-10 px-4 text-sm',
         size === 'lg' && 'h-11 px-5 text-base',
         variant === 'primary' &&
-          'bg-brand-500 text-black hover:bg-brand-400 shadow-[0_0_18px_rgba(0,255,102,0.35)]',
+          'bg-brand-500 text-black hover:bg-brand-400 shadow-[0_0_18px_rgba(0,180,255,0.4)]',
         variant === 'secondary' &&
           'bg-white text-ink border border-line hover:bg-brand-50 dark:bg-brand-900/40 dark:text-brand-50 dark:border-brand-700 dark:hover:bg-brand-900 dark:hover:border-brand-500',
         variant === 'ghost' && 'hover:bg-brand-50 text-ink dark:hover:bg-brand-900/50 dark:text-brand-50',

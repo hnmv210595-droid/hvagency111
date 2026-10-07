@@ -73,7 +73,7 @@ export function AppLayout() {
                 cn(
                   'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition',
                   isActive
-                    ? 'bg-brand-500 text-black shadow-[0_0_14px_rgba(0,255,102,0.35)]'
+                    ? 'bg-brand-500 text-black shadow-[0_0_14px_rgba(0,180,255,0.4)]'
                     : 'text-muted hover:bg-brand-50 hover:text-ink dark:text-brand-200 dark:hover:bg-brand-900',
                 )
               }
