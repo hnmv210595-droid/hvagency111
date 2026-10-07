@@ -42,7 +42,7 @@ function mapGroup(row: GroupRow) {
 }
 
 /**
- * Receive-bot webhook: reply with chat_id when someone messages the bot.
+ * Receive-bot webhook: reply with chat_id when someone sends /chatid.
  * No session auth — secured by optional Telegram secret_token header.
  */
 telegramRoutes.post('/webhook', async (c) => {
@@ -70,21 +70,17 @@ telegramRoutes.post('/webhook', async (c) => {
     return jsonError('Invalid JSON', 400);
   }
 
-  const chat = update.message?.chat ?? update.my_chat_member?.chat ?? null;
-  if (!chat?.id) {
+  // Only reply to the /chatid command (also /chatid@BotName in groups); ignore everything else.
+  const text = update.message?.text?.trim() ?? '';
+  const chat = update.message?.chat ?? null;
+  if (!chat?.id || !/^\/chatid(@\w+)?(\s|$)/i.test(text)) {
     return c.json({ ok: true });
   }
 
   const chatId = String(chat.id);
-  const title = chat.title ? escapeHtml(chat.title) : chat.type ?? 'chat';
   const reply = [
-    `Chat ID của hội thoại này:`,
-    `<b>${escapeHtml(chatId)}</b>`,
-    ``,
-    `Loại: ${escapeHtml(String(chat.type ?? 'unknown'))}`,
-    title ? `Tên: ${title}` : '',
-    ``,
-    `Vào website HV-Agency → <b>Telegram</b> → thêm nhóm với Chat ID này.`,
+    chat.title ? `Nhóm: ${escapeHtml(chat.title)}` : '',
+    `Chat ID: <b>${escapeHtml(chatId)}</b>`,
   ]
     .filter(Boolean)
     .join('\n');

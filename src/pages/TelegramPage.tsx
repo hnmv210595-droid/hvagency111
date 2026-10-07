@@ -187,7 +187,7 @@ export function TelegramPage() {
         <p className="mt-2 text-xs text-muted dark:text-brand-300">
           Chat ID dạng số (thường âm), ví dụ <code>-5581029985</code> hoặc{' '}
           <code>-100xxxxxxxxxx</code>. Lấy ID: thêm bot nhận vào nhóm → gửi{' '}
-          <code>/start</code> → copy Chat ID bot trả về.
+          <code>/chatid</code> → copy Chat ID bot trả về.
         </p>
       </Card>
 

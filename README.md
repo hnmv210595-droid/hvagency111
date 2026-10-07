@@ -118,7 +118,7 @@ Thực Nhận: **… VNĐ**
 
 (Giá trị sau dấu `:` được bôi đậm bằng Telegram HTML `<b>`.)
 
-2. **Receive bot** (`TELEGRAM_RECEIVE_BOT_TOKEN`): webhook `POST /api/telegram/webhook` — khi nhắn bot hoặc thêm bot vào nhóm, bot trả về **Chat ID**. Copy vào panel Telegram trên website (không cần secret `TELEGRAM_CHAT_ID` nữa; secret chỉ còn fallback nếu DB trống).
+2. **Receive bot** (`TELEGRAM_RECEIVE_BOT_TOKEN`): webhook `POST /api/telegram/webhook` — bot chỉ trả về **Chat ID** khi có người gõ `/chatid` trong nhóm (các tin khác bỏ qua). Copy vào panel Telegram trên website (không cần secret `TELEGRAM_CHAT_ID` nữa; secret chỉ còn fallback nếu DB trống).
 
 Setup nhanh sau deploy:
 
